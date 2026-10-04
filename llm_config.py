@@ -1,26 +1,37 @@
 import os
+import streamlit as st
 from crewai import LLM
 
+# Real model ID on Groq and OpenRouter is "openai/gpt-oss-120b".
+# CrewAI strips the first "openai/" prefix, so we add it twice.
+MODEL = "openai/openai/gpt-oss-120b"
 
-MODEL_NAME = "openai/gpt-oss-120b"
-GROQ_BASE_URL = "https://api.groq.com/openai/v1"
+
+def _secret(name: str, default=None):
+    try:
+        if name in st.secrets:
+            return st.secrets[name]
+    except Exception:
+        pass
+    return os.environ.get(name, default)
 
 
-def get_groq_llm() -> LLM:
-    """Return the shared Groq LLM configuration used by every agent."""
-    api_key = os.getenv("GROQ_API_KEY")
+def get_llm() -> LLM:
+    provider = str(_secret("LLM_PROVIDER", "groq")).lower()
 
-    if not api_key:
-        raise RuntimeError(
-            "GROQ_API_KEY is not configured. "
-            "Add it to Streamlit Cloud Secrets."
+    if provider == "openrouter":
+        return LLM(
+            model=MODEL,
+            base_url="https://openrouter.ai/api/v1",
+            api_key=_secret("OPENROUTER_API_KEY"),
+            temperature=0.2,
+            max_tokens=3000,
         )
 
     return LLM(
-        model=MODEL_NAME,
-        base_url=GROQ_BASE_URL,
-        api_key=api_key,
+        model=MODEL,
+        base_url="https://api.groq.com/openai/v1",
+        api_key=_secret("GROQ_API_KEY"),
         temperature=0.2,
-        timeout=120,
-        max_tokens=8000,
+        max_tokens=3000,
     )
